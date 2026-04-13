@@ -1,15 +1,14 @@
 {
-  "homepage": "http://<git username>.github.io/<repo name>", 
-  "name": "three-body",
+  "homepage": "http://<git username>.github.io/<repo name>",
+  "name": "three-body-plus",
   "version": "1.0.0",
   "description": "A web-based 3D gravitation sim",
   "main": "index.html",
   "scripts": {
+    "start": "",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "preview": "vite preview"
   },
   "author": "drasimov",
   "license": "MIT",
@@ -17,8 +16,5 @@
     "stats-js": "^1.0.1",
     "three": "^0.163.0",
     "vite": "^5.2.8"
-  },
-  "devDependencies": {
-    "gh-pages": "^6.1.1"
   }
 }
