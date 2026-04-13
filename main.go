@@ -1,13 +1,14 @@
 package main
 
 import(
+	"context"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 )
 
@@ -15,7 +16,6 @@ func main(){
 	app:=fiber.New(fiber.Config{
 		AppName: "Three Body Plus",
 	})
-	app.Use(logger.New())
 	app.Use(recover.New())
 	distPath, err:=filepath.Abs("./dist")
 	if err!=nil{
@@ -54,6 +54,15 @@ func main(){
 	if port==""{
 		port="4173"
 	}
-	log.Printf("Server starting on http://localhost:%s", port)
-	log.Fatal(app.Listen(":"+port))
+	lc:=net.ListenConfig{}
+	ln, err:=lc.Listen(context.Background(), "tcp6", "[::]:"+port)
+	if err!=nil{
+		log.Printf("IPv6 listen failed: %v; falling back to IPv4", err)
+		ln, err=lc.Listen(context.Background(), "tcp4", "0.0.0.0:"+port)
+		if err!=nil{
+			log.Fatalf("Failed to listen: %v", err)
+		}
+	}
+	log.Printf("Server starting on %s", ln.Addr())
+	log.Fatal(app.Listener(ln))
 }
