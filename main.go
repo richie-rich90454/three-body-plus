@@ -13,7 +13,7 @@ import(
 
 func main(){
 	app:=fiber.New(fiber.Config{
-		AppName: "RandMatQuGe",
+		AppName: "Three Body Plus",
 	})
 	app.Use(logger.New())
 	app.Use(recover.New())
@@ -52,7 +52,7 @@ func main(){
 	})
 	port:=os.Getenv("PORT")
 	if port==""{
-		port="1331"
+		port="4173"
 	}
 	log.Printf("Server starting on http://localhost:%s", port)
 	log.Fatal(app.Listen(":"+port))
