@@ -67,14 +67,17 @@ const controller: ControllerMap={
 	5: {pressed: false},
 	6: {pressed: false},
 };
+let flyMode=false;
+const flySpeed=0.5;
 document.addEventListener("keydown", (e)=>{
-	if(e.key==="ArrowRight") controller[1].pressed=true;
-	if(e.key==="ArrowLeft") controller[2].pressed=true;
-	if(e.key==="ArrowUp") controller[3].pressed=true;
-	if(e.key==="ArrowDown") controller[4].pressed=true;
+	if(e.key==="ArrowRight"||e.key.toLowerCase()==="d") controller[1].pressed=true;
+	if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a") controller[2].pressed=true;
+	if(e.key==="ArrowUp"||e.key.toLowerCase()==="w") controller[3].pressed=true;
+	if(e.key==="ArrowDown"||e.key.toLowerCase()==="s") controller[4].pressed=true;
 	if(e.key==="Shift") controller[5].pressed=true;
 	if(e.key==="Enter") controller[6].pressed=true;
 	if(e.key===" ") toggleWork();
+	if(e.key.toLowerCase()==="f") flyMode=!flyMode;
 });
 document.addEventListener("keyup", (e)=>{
 	if(e.key==="ArrowRight") controller[1].pressed=false;
@@ -132,7 +135,7 @@ function trailMake(): void{
 }
 bodyMake();
 trailMake();
-const MAX_TRAIL=20000;
+const MAX_TRAIL=200000;
 const _tempDir=new THREE.Vector3();
 function grav(o: number): THREE.Vector3{
 	const force=new THREE.Vector3();
@@ -306,12 +309,27 @@ function animate(): void{
 		trailControl();
 		if(testing) testMass();
 	}
+	if(flyMode){
+		const forward=new THREE.Vector3();
+		const right=new THREE.Vector3();
+		camera.getWorldDirection(forward);
+		right.crossVectors(forward, camera.up).normalize();
+		const move=new THREE.Vector3();
+		if(controller[1].pressed) move.add(right);
+		if(controller[2].pressed) move.sub(right);
+		if(controller[3].pressed) move.add(forward);
+		if(controller[4].pressed) move.sub(forward);
+		if(controller[5].pressed) move.y+=1;
+		if(controller[6].pressed) move.y-=1;
+		if(move.length()>0) move.normalize();
+		camera.position.add(move.multiplyScalar(flySpeed));
+		controls.target.copy(camera.position.clone().add(forward));
+	}
 	stats.end();
 	controls.update();
 	renderer.render(scene, camera);
 }
 // TODO:
-// keyboard flying around
 // better test masses
 // user input
 // more optimization
