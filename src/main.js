@@ -206,7 +206,8 @@ function grav(o){
 			b[o].s.copy(b[o].obj.position);
 			b[i].s.copy(b[i].obj.position);
 
-			force.add(o1.add(o0.negate()).normalize().multiplyScalar(b[o].m*b[i].m/(b[o].s.distanceToSquared(b[i].s))));
+			const dir=new THREE.Vector3().subVectors(o1, o0).normalize();
+			force.add(dir.multiplyScalar(b[o].m*b[i].m/b[o].s.distanceToSquared(b[i].s)));
 		}
 	}
 	return force;
@@ -312,7 +313,12 @@ function testMass(){
 	b[testIndex].v.add(grav(testIndex).multiplyScalar(1/(20*b[testIndex].m)));
 
 	t[testIndex].pos.unshift(new THREE.Vector3().copy(b[testIndex].obj.position));
-	scene.children[scene.children.length-1].geometry.setFromPoints(t[testIndex].pos);
+	if (t[testIndex].pos.length>MAX_TRAIL) t[testIndex].pos.pop();
+	const oldGeo=scene.children[scene.children.length-1].geometry;
+	const newGeo=new THREE.BufferGeometry();
+	newGeo.setFromPoints(t[testIndex].pos);
+	scene.children[scene.children.length-1].geometry=newGeo;
+	oldGeo.dispose();
 }
 
 
