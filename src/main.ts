@@ -105,7 +105,7 @@ const sphereMats=[
 	new THREE.MeshLambertMaterial({ color: 0xffdddd, transparent: true, opacity: 0.9 }),
 ];
 function bodyMake(): void{
-	for(let i=0; i<n; i++){
+	for(let i=0;i<n;i++){
 		const pos=new THREE.Vector3(5*i,0,0);
 		const mesh=new THREE.Mesh(sphereGeos[0], sphereMats[i%3]);
 		mesh.receiveShadow=true;
@@ -120,7 +120,7 @@ function bodyMake(): void{
 	camera.position.x=5*(n-1)/2;
 }
 function trailMake(): void{
-	for(let i=0; i<bodies.length; i++){
+	for(let i=0;i<bodies.length;i++){
 		const points=[bodies[i].obj.position.clone()];
 		const geometry=new THREE.BufferGeometry();
 		geometry.setFromPoints(points);
@@ -132,31 +132,35 @@ function trailMake(): void{
 }
 bodyMake();
 trailMake();
+const MAX_TRAIL=20000;
+const _tempDir=new THREE.Vector3();
 function grav(o: number): THREE.Vector3{
 	const force=new THREE.Vector3();
-	for(let i=0; i<bodies.length; i++){
+	const o0=bodies[o].obj.position;
+	const oMass=bodies[o].m;
+	for(let i=0;i<bodies.length;i++){
 		if(i!==o && !bodies[o].test){
-			const o0=bodies[o].obj.position;
 			const o1=bodies[i].obj.position;
-			const dir=new THREE.Vector3().subVectors(o1, o0).normalize();
+			const dir=_tempDir.subVectors(o1, o0).normalize();
 			const distSq=o0.distanceToSquared(o1);
-			force.add(dir.multiplyScalar(bodies[o].m*bodies[i].m/distSq));
+			force.add(dir.multiplyScalar(oMass*bodies[i].m/distSq));
 		}
 	}
 	return force;
 }
 function physics(): void{
-	for(let i=0; i<bodies.length; i++){
-		bodies[i].obj.position.add(bodies[i].v);
-	}
-	for(let i=0; i<bodies.length; i++){
-		bodies[i].v.add(grav(i).multiplyScalar(1/(20*bodies[i].m)));
+	const len=bodies.length;
+	for(let i=0;i<len;i++) bodies[i].obj.position.add(bodies[i].v);
+	const inv=1/20;
+	for(let i=0;i<len;i++){
+		const f=grav(i);
+		bodies[i].v.add(f.multiplyScalar(inv/bodies[i].m));
 	}
 }
 function cameraControl(): void{
 	const com=new THREE.Vector3();
 	let totalMass=0;
-	for(let i=0; i<bodies.length; i++){
+	for(let i=0;i<bodies.length;i++){
 		com.add(bodies[i].obj.position.clone().multiplyScalar(bodies[i].m));
 		totalMass+=bodies[i].m;
 	}
@@ -164,13 +168,15 @@ function cameraControl(): void{
 	controls.target.copy(com);
 }
 function trailControl(): void{
-	for(let i=0; i<trails.length; i++){
-		trails[i].pos.unshift(bodies[i].obj.position.clone());
-		if(trails[i].pos.length>200) trails[i].pos.pop();
-		const oldGeo=trails[i].line.geometry;
+	const len=trails.length;
+	for(let i=0;i<len;i++){
+		const trail=trails[i];
+		trail.pos.unshift(bodies[i].obj.position.clone());
+		if(trail.pos.length>MAX_TRAIL) trail.pos.pop();
+		const oldGeo=trail.line.geometry;
 		const newGeo=new THREE.BufferGeometry();
-		newGeo.setFromPoints(trails[i].pos);
-		trails[i].line.geometry=newGeo;
+		newGeo.setFromPoints(trail.pos);
+		trail.line.geometry=newGeo;
 		oldGeo.dispose();
 	}
 }
@@ -232,14 +238,16 @@ function addTestMass(): void{
 	testIndex=bodies.length-1;
 }
 function testMass(): void{
-	bodies[testIndex].obj.position.add(bodies[testIndex].v);
-	bodies[testIndex].v.add(grav(testIndex).multiplyScalar(1/(20*bodies[testIndex].m)));
-	trails[testIndex].pos.unshift(bodies[testIndex].obj.position.clone());
-	if(trails[testIndex].pos.length>200) trails[testIndex].pos.pop();
-	const oldGeo=trails[testIndex].line.geometry;
+	const idx=testIndex;
+	bodies[idx].obj.position.add(bodies[idx].v);
+	bodies[idx].v.add(grav(idx).multiplyScalar(1/(20*bodies[idx].m)));
+	const trail=trails[idx];
+	trail.pos.unshift(bodies[idx].obj.position.clone());
+	if(trail.pos.length>MAX_TRAIL) trail.pos.pop();
+	const oldGeo=trail.line.geometry;
 	const newGeo=new THREE.BufferGeometry();
-	newGeo.setFromPoints(trails[testIndex].pos);
-	trails[testIndex].line.geometry=newGeo;
+	newGeo.setFromPoints(trail.pos);
+	trail.line.geometry=newGeo;
 	oldGeo.dispose();
 }
 function genSlider(i: number): void{
@@ -251,34 +259,34 @@ function genSlider(i: number): void{
 	str+=`<div class="slider-wrap"><span class="o5 m-l l col-${i%3}">v<sub>${i+1}<sub>z</sub></sub></span><input type="range" min="-1.5" max="1.5" step="0.1" value="${b.v.z}" class="slider" id="input-s-${i}z"><span id="input-n-${i}z" class="o5 number l col-${i%3}">${b.v.z>=0?"+":""}${b.v.z.toFixed(1)}</span></div></div>`;
 	$("setter").innerHTML+=str;
 }
-for(let i=0; i<n; i++) genSlider(i);
-for(let i=0; i<n; i++){
-	const massInput = $(`input-s-${i}`) as HTMLInputElement;
-	const massSpan = $(`input-n-${i}`);
+for(let i=0;i<n;i++) genSlider(i);
+for(let i=0;i<n;i++){
+	const massInput=$(`input-s-${i}`) as HTMLInputElement;
+	const massSpan=$(`input-n-${i}`);
 	massInput.addEventListener("input", ()=>{
-		massSpan.innerHTML = Number(massInput.value).toFixed(1);
-		bodies[i].m = Number(massInput.value);
+		massSpan.innerHTML=Number(massInput.value).toFixed(1);
+		bodies[i].m=Number(massInput.value);
 	});
-	const vxInput = $(`input-s-${i}x`) as HTMLInputElement;
-	const vxSpan = $(`input-n-${i}x`);
+	const vxInput=$(`input-s-${i}x`) as HTMLInputElement;
+	const vxSpan=$(`input-n-${i}x`);
 	vxInput.addEventListener("input", ()=>{
-		const val = Number(vxInput.value);
-		vxSpan.innerHTML = (val>=0?"+":"") + val.toFixed(1);
-		bodies[i].v.x = val;
+		const val=Number(vxInput.value);
+		vxSpan.innerHTML=(val>=0?"+":"")+val.toFixed(1);
+		bodies[i].v.x=val;
 	});
-	const vyInput = $(`input-s-${i}y`) as HTMLInputElement;
-	const vySpan = $(`input-n-${i}y`);
+	const vyInput=$(`input-s-${i}y`) as HTMLInputElement;
+	const vySpan=$(`input-n-${i}y`);
 	vyInput.addEventListener("input", ()=>{
-		const val = Number(vyInput.value);
-		vySpan.innerHTML = (val>=0?"+":"") + val.toFixed(1);
-		bodies[i].v.y = val;
+		const val=Number(vyInput.value);
+		vySpan.innerHTML=(val>=0?"+":"")+val.toFixed(1);
+		bodies[i].v.y=val;
 	});
-	const vzInput = $(`input-s-${i}z`) as HTMLInputElement;
-	const vzSpan = $(`input-n-${i}z`);
+	const vzInput=$(`input-s-${i}z`) as HTMLInputElement;
+	const vzSpan=$(`input-n-${i}z`);
 	vzInput.addEventListener("input", ()=>{
-		const val = Number(vzInput.value);
-		vzSpan.innerHTML = (val>=0?"+":"") + val.toFixed(1);
-		bodies[i].v.z = val;
+		const val=Number(vzInput.value);
+		vzSpan.innerHTML=(val>=0?"+":"")+val.toFixed(1);
+		bodies[i].v.z=val;
 	});
 }
 $("begin").addEventListener("click", run);
