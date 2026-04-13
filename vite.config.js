@@ -9,7 +9,7 @@ export default defineConfig({
 	root: ".",
 	publicDir: "public",
 	build: {
-		outDir: "../dist",
+		outDir: "dist",
 		emptyOutDir: true,
 		assetsDir: "assets",
 		minify: "oxc",
