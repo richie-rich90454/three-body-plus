@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import Stats from 'stats.js';
+import Stats from 'stats-js';
 import starmap from '/starmap.png';
 interface ControllerMap{
 	[key: number]: { pressed: boolean };
@@ -253,24 +253,32 @@ function genSlider(i: number): void{
 }
 for(let i=0; i<n; i++) genSlider(i);
 for(let i=0; i<n; i++){
-	$(`input-s-${i}`).addEventListener("input", ()=>{
-		$(`input-n-${i}`).innerHTML=Number($(`input-s-${i}`).value).toFixed(1);
-		bodies[i].m=Number($(`input-s-${i}`).value);
+	const massInput = $(`input-s-${i}`) as HTMLInputElement;
+	const massSpan = $(`input-n-${i}`);
+	massInput.addEventListener("input", ()=>{
+		massSpan.innerHTML = Number(massInput.value).toFixed(1);
+		bodies[i].m = Number(massInput.value);
 	});
-	$(`input-s-${i}x`).addEventListener("input", ()=>{
-		const val=Number($(`input-s-${i}x`).value);
-		$(`input-n-${i}x`).innerHTML=(val>=0?"+":"")+val.toFixed(1);
-		bodies[i].v.x=val;
+	const vxInput = $(`input-s-${i}x`) as HTMLInputElement;
+	const vxSpan = $(`input-n-${i}x`);
+	vxInput.addEventListener("input", ()=>{
+		const val = Number(vxInput.value);
+		vxSpan.innerHTML = (val>=0?"+":"") + val.toFixed(1);
+		bodies[i].v.x = val;
 	});
-	$(`input-s-${i}y`).addEventListener("input", ()=>{
-		const val=Number($(`input-s-${i}y`).value);
-		$(`input-n-${i}y`).innerHTML=(val>=0?"+":"")+val.toFixed(1);
-		bodies[i].v.y=val;
+	const vyInput = $(`input-s-${i}y`) as HTMLInputElement;
+	const vySpan = $(`input-n-${i}y`);
+	vyInput.addEventListener("input", ()=>{
+		const val = Number(vyInput.value);
+		vySpan.innerHTML = (val>=0?"+":"") + val.toFixed(1);
+		bodies[i].v.y = val;
 	});
-	$(`input-s-${i}z`).addEventListener("input", ()=>{
-		const val=Number($(`input-s-${i}z`).value);
-		$(`input-n-${i}z`).innerHTML=(val>=0?"+":"")+val.toFixed(1);
-		bodies[i].v.z=val;
+	const vzInput = $(`input-s-${i}z`) as HTMLInputElement;
+	const vzSpan = $(`input-n-${i}z`);
+	vzInput.addEventListener("input", ()=>{
+		const val = Number(vzInput.value);
+		vzSpan.innerHTML = (val>=0?"+":"") + val.toFixed(1);
+		bodies[i].v.z = val;
 	});
 }
 $("begin").addEventListener("click", run);
