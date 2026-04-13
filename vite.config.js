@@ -50,12 +50,12 @@ export default defineConfig({
 	],
 	server: {
 		host: "::",
-		port: 1331,
+		port: 5173,
 		open: false
 	},
 	preview: {
 		host: "::",
-		port: 1331,
+		port: 4173,
 		open: false
 	}
 });
