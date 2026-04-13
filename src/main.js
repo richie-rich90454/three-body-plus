@@ -9,6 +9,8 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000); 
 const renderer = new THREE.WebGLRenderer({antialias: true, powerPreference: "high-performance"}); 
 
+const MAX_TRAIL = 200;
+
 const controller = {
 	1: {pressed: false}, //+x
 	2: {pressed: false}, //-x
@@ -225,10 +227,16 @@ function cameraControl(){
 }
 
 function trailControl(){
-	for(let i=0; i<n; i++){
-		t[i].pos.unshift(new THREE.Vector3().copy(b[i].obj.position));
-		scene.children[i+n].geometry.setFromPoints(t[i].pos);
-	}
+    for (let i=0; i<n; i++){
+        t[i].pos.unshift(new THREE.Vector3().copy(b[i].obj.position));
+        if (t[i].pos.length>MAX_TRAIL) t[i].pos.pop();
+        const line=t[i].line;
+        const oldGeo=line.geometry;
+        const newGeo=new THREE.BufferGeometry();
+        newGeo.setFromPoints(t[i].pos);
+        line.geometry=newGeo;
+        oldGeo.dispose();
+    }
 }
 
 let work = false;
