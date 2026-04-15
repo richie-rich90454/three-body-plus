@@ -69,6 +69,76 @@ const controller: ControllerMap={
 };
 let flyMode=false;
 const flySpeed=0.5;
+let work=false;
+let stepMode=false;
+let creative=true;
+let showT=true;
+let showO=true;
+let showB=true;
+let showPS=false;
+let testIndex=3;
+let testing=false;
+const bodies: Body[]=[];
+const trails: Trail[]=[];
+const lineMaterials=[
+	new THREE.LineBasicMaterial({ color: 0x8888ff, transparent: true, opacity: 0.9 }),
+	new THREE.LineBasicMaterial({ color: 0x88ff88, transparent: true, opacity: 0.9 }),
+	new THREE.LineBasicMaterial({ color: 0xff8888, transparent: true, opacity: 0.9 }),
+];
+const sphereGeos=[
+	new THREE.SphereGeometry(0.25,8,8),
+	new THREE.SphereGeometry(0.05,8,8),
+];
+const sphereMats=[
+	new THREE.MeshLambertMaterial({ color: 0xddddff, transparent: true, opacity: 0.9 }),
+	new THREE.MeshLambertMaterial({ color: 0xddffdd, transparent: true, opacity: 0.9 }),
+	new THREE.MeshLambertMaterial({ color: 0xffdddd, transparent: true, opacity: 0.9 }),
+];
+function resetSimulation(positions?: THREE.Vector3[], velocities?: THREE.Vector3[], masses?: number[]): void{
+	while(bodies.length){
+		scene.remove(bodies[0].obj);
+		bodies.shift();
+	}
+	while(trails.length){
+		scene.remove(trails[0].line);
+		trails.shift();
+	}
+	const p=positions||[new THREE.Vector3(5,0,0), new THREE.Vector3(0,0,0), new THREE.Vector3(-5,0,0)];
+	const v=velocities||[new THREE.Vector3(0,0.1,0.1), new THREE.Vector3(0,0,0), new THREE.Vector3(-0.1,-0.1,0)];
+	const m=masses||[1,1,1];
+	for(let i=0;i<n;i++){
+		const mesh=new THREE.Mesh(sphereGeos[0], sphereMats[i%3]);
+		mesh.receiveShadow=true;
+		mesh.castShadow=true;
+		mesh.position.copy(p[i]);
+		scene.add(mesh);
+		bodies.push(new Body(m[i], p[i], v[i], mesh, false));
+	}
+	for(let i=0;i<bodies.length;i++){
+		const points=[bodies[i].obj.position.clone()];
+		const geometry=new THREE.BufferGeometry();
+		geometry.setFromPoints(points);
+		const line=new THREE.Line(geometry, lineMaterials[i%3]);
+		line.frustumCulled=false;
+		scene.add(line);
+		trails.push(new Trail(points, line));
+	}
+	const com=new THREE.Vector3();
+	let totalMass=0;
+	for(let i=0;i<bodies.length;i++){
+		com.add(bodies[i].obj.position.clone().multiplyScalar(bodies[i].m));
+		totalMass+=bodies[i].m;
+	}
+	com.divideScalar(totalMass);
+	controls.target.copy(com);
+	camera.position.copy(com.clone().add(new THREE.Vector3(0,0,15)));
+	work=false;
+	stepMode=false;
+	if(testing){
+		testing=false;
+		testIndex=bodies.length;
+	}
+}
 document.addEventListener("keydown", (e)=>{
 	if(e.key==="ArrowRight"||e.key.toLowerCase()==="d") controller[1].pressed=true;
 	if(e.key==="ArrowLeft"||e.key.toLowerCase()==="a") controller[2].pressed=true;
@@ -91,50 +161,7 @@ const stats=new Stats();
 stats.showPanel(0);
 document.getElementById("stats")!.appendChild(stats.dom);
 stats.dom.style.position="relative";
-const bodies: Body[]=[];
-const trails: Trail[]=[];
-const lineMaterials=[
-	new THREE.LineBasicMaterial({ color: 0x8888ff, transparent: true, opacity: 0.9 }),
-	new THREE.LineBasicMaterial({ color: 0x88ff88, transparent: true, opacity: 0.9 }),
-	new THREE.LineBasicMaterial({ color: 0xff8888, transparent: true, opacity: 0.9 }),
-];
-const sphereGeos=[
-	new THREE.SphereGeometry(0.25,8,8),
-	new THREE.SphereGeometry(0.05,8,8),
-];
-const sphereMats=[
-	new THREE.MeshLambertMaterial({ color: 0xddddff, transparent: true, opacity: 0.9 }),
-	new THREE.MeshLambertMaterial({ color: 0xddffdd, transparent: true, opacity: 0.9 }),
-	new THREE.MeshLambertMaterial({ color: 0xffdddd, transparent: true, opacity: 0.9 }),
-];
-function bodyMake(): void{
-	for(let i=0;i<n;i++){
-		const pos=new THREE.Vector3(5*i,0,0);
-		const mesh=new THREE.Mesh(sphereGeos[0], sphereMats[i%3]);
-		mesh.receiveShadow=true;
-		mesh.castShadow=true;
-		mesh.position.copy(pos);
-		scene.add(mesh);
-		bodies.push(new Body(1, pos, new THREE.Vector3(), mesh, false));
-	}
-	bodies[0].v.set(0,0.1,0.1);
-	bodies[2].v.set(-0.1,-0.1,0);
-	controls.target.x=5*(n-1)/2;
-	camera.position.x=5*(n-1)/2;
-}
-function trailMake(): void{
-	for(let i=0;i<bodies.length;i++){
-		const points=[bodies[i].obj.position.clone()];
-		const geometry=new THREE.BufferGeometry();
-		geometry.setFromPoints(points);
-		const line=new THREE.Line(geometry, lineMaterials[i%3]);
-		line.frustumCulled=false;
-		scene.add(line);
-		trails.push(new Trail(points, line));
-	}
-}
-bodyMake();
-trailMake();
+resetSimulation();
 const MAX_TRAIL=200000;
 const _tempDir=new THREE.Vector3();
 function grav(o: number): THREE.Vector3{
@@ -183,12 +210,67 @@ function trailControl(): void{
 		oldGeo.dispose();
 	}
 }
-let work=false;
-let creative=true;
-let showT=true;
-let showO=true;
-let showB=true;
-let showPS=false;
+function computeStats(): { energy: number, angMom: THREE.Vector3, com: THREE.Vector3 }{
+	let totalKinetic=0;
+	let totalPotential=0;
+	const comPos=new THREE.Vector3();
+	let totalMass=0;
+	for(let i=0;i<bodies.length;i++){
+		const bi=bodies[i];
+		totalKinetic+=0.5*bi.m*bi.v.lengthSq();
+		comPos.add(bi.obj.position.clone().multiplyScalar(bi.m));
+		totalMass+=bi.m;
+	}
+	comPos.divideScalar(totalMass);
+	for(let i=0;i<bodies.length;i++){
+		for(let j=i+1;j<bodies.length;j++){
+			const r=bodies[i].obj.position.distanceTo(bodies[j].obj.position);
+			totalPotential-=bodies[i].m*bodies[j].m/r;
+		}
+	}
+	const angMom=new THREE.Vector3();
+	for(let i=0;i<bodies.length;i++){
+		const r=bodies[i].obj.position.clone();
+		const p=bodies[i].v.clone().multiplyScalar(bodies[i].m);
+		angMom.add(r.cross(p));
+	}
+	return { energy: totalKinetic+totalPotential, angMom, com: comPos };
+}
+function updateStatsDisplay(): void{
+	const { energy, angMom, com }=computeStats();
+	const div=document.getElementById("phys-stats");
+	if(div){
+		div.innerHTML=`E = ${energy.toFixed(3)} &nbsp; |L| = ${angMom.length().toFixed(3)}<br>COM = (${com.x.toFixed(2)}, ${com.y.toFixed(2)}, ${com.z.toFixed(2)})`;
+	}
+}
+function presetLagrange(): void{
+	const pos=[
+		new THREE.Vector3(1,0,0),
+		new THREE.Vector3(-1,0,0),
+		new THREE.Vector3(0,0,0)
+	];
+	const vel=[
+		new THREE.Vector3(0,0.5,0),
+		new THREE.Vector3(0,-0.5,0),
+		new THREE.Vector3(0,0,0)
+	];
+	const masses=[1,1,0.01];
+	resetSimulation(pos, vel, masses);
+}
+function presetFigure8(): void{
+	const pos=[
+		new THREE.Vector3(0.970,-0.243,0),
+		new THREE.Vector3(-0.970,-0.243,0),
+		new THREE.Vector3(0,0.486,0)
+	];
+	const vel=[
+		new THREE.Vector3(0.466,0.433,0),
+		new THREE.Vector3(0.466,0.433,0),
+		new THREE.Vector3(-0.932,-0.866,0)
+	];
+	const masses=[1,1,1];
+	resetSimulation(pos, vel, masses);
+}
 function $(id: string): HTMLElement{
 	return document.getElementById(id)!;
 }
@@ -204,7 +286,28 @@ function run(): void{
 function hide(): void{
 	$("begin").style.display="none";
 }
-function toggleWork(): void{ work=!work; }
+function toggleWork(): void{
+	if(stepMode){
+		stepMode=false;
+		work=false;
+	}
+	else{
+		work=!work;
+	}
+}
+function step(): void{
+	if(!work){
+		stepMode=true;
+		physics();
+		cameraControl();
+		trailControl();
+		if(testing) testMass();
+		updateStatsDisplay();
+	}
+}
+function reset(): void{
+	resetSimulation();
+}
 function toggleTrails(): void{
 	showT=!showT;
 	for(const t of trails) t.line.visible=showT;
@@ -221,8 +324,6 @@ function toggleSetter(): void{
 	showPS=!showPS;
 	$("setter").style.display=showPS?"block":"none";
 }
-let testIndex=bodies.length;
-let testing=false;
 function addTestMass(): void{
 	testing=true;
 	const pos=new THREE.Vector3(-5,0,0);
@@ -294,11 +395,15 @@ for(let i=0;i<n;i++){
 }
 $("begin").addEventListener("click", run);
 $("b-s").addEventListener("click", toggleWork);
+$("b-step").addEventListener("click", step);
+$("b-reset").addEventListener("click", reset);
 $("b-t").addEventListener("click", toggleTrails);
 $("b-o").addEventListener("click", toggleObjects);
 $("b-b").addEventListener("click", toggleBkg);
 $("b-tm").addEventListener("click", addTestMass);
 $("b-ps").addEventListener("click", toggleSetter);
+$("b-lagrange").addEventListener("click", presetLagrange);
+$("b-figure8").addEventListener("click", presetFigure8);
 $("setter").style.display="none";
 function animate(): void{
 	requestAnimationFrame(animate);
@@ -308,6 +413,7 @@ function animate(): void{
 		cameraControl();
 		trailControl();
 		if(testing) testMass();
+		updateStatsDisplay();
 	}
 	if(flyMode){
 		const forward=new THREE.Vector3();
