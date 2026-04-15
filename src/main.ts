@@ -6,10 +6,14 @@ interface ControllerMap{
 	[key: number]: { pressed: boolean };
 }
 class Trail{
-	pos: THREE.Vector3[];
+	buffer: Float32Array;
+	head: number;
+	count: number;
 	line: THREE.Line;
-	constructor(pos: THREE.Vector3[], line: THREE.Line){
-		this.pos=pos;
+	constructor(buffer: Float32Array, line: THREE.Line){
+		this.buffer=buffer;
+		this.head=1;
+		this.count=1;
 		this.line=line;
 	}
 }
@@ -122,20 +126,25 @@ function bodyMake(): void{
 	controls.target.x=5*(n-1)/2;
 	camera.position.x=5*(n-1)/2;
 }
+const MAX_TRAIL=200000;
 function trailMake(): void{
 	for(let i=0;i<bodies.length;i++){
+		const buffer=new Float32Array(MAX_TRAIL*3);
 		const points=[bodies[i].obj.position.clone()];
 		const geometry=new THREE.BufferGeometry();
 		geometry.setFromPoints(points);
 		const line=new THREE.Line(geometry, lineMaterials[i%3]);
 		line.frustumCulled=false;
 		scene.add(line);
-		trails.push(new Trail(points, line));
+		const trail=new Trail(buffer, line);
+		trail.buffer[0]=bodies[i].obj.position.x;
+		trail.buffer[1]=bodies[i].obj.position.y;
+		trail.buffer[2]=bodies[i].obj.position.z;
+		trails.push(trail);
 	}
 }
 bodyMake();
 trailMake();
-const MAX_TRAIL=200000;
 const _tempDir=new THREE.Vector3();
 function grav(o: number): THREE.Vector3{
 	const force=new THREE.Vector3();
@@ -174,11 +183,25 @@ function trailControl(): void{
 	const len=trails.length;
 	for(let i=0;i<len;i++){
 		const trail=trails[i];
-		trail.pos.unshift(bodies[i].obj.position.clone());
-		if(trail.pos.length>MAX_TRAIL) trail.pos.pop();
+		const pos=bodies[i].obj.position;
+		const idx=trail.head*3;
+		trail.buffer[idx]=pos.x;
+		trail.buffer[idx+1]=pos.y;
+		trail.buffer[idx+2]=pos.z;
+		trail.head=(trail.head+1)%MAX_TRAIL;
+		if(trail.count<MAX_TRAIL) trail.count++;
+		const points: THREE.Vector3[]=[];
+		const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
+		for(let j=0;j<trail.count;j++){
+			const pIdx=(start+j)%MAX_TRAIL;
+			const bx=trail.buffer[pIdx*3];
+			const by=trail.buffer[pIdx*3+1];
+			const bz=trail.buffer[pIdx*3+2];
+			points.push(new THREE.Vector3(bx,by,bz));
+		}
 		const oldGeo=trail.line.geometry;
 		const newGeo=new THREE.BufferGeometry();
-		newGeo.setFromPoints(trail.pos);
+		newGeo.setFromPoints(points);
 		trail.line.geometry=newGeo;
 		oldGeo.dispose();
 	}
@@ -231,13 +254,18 @@ function addTestMass(): void{
 	mesh.position.copy(pos);
 	scene.add(mesh);
 	bodies.push(new Body(1, pos, vel, mesh, true));
+	const buffer=new Float32Array(MAX_TRAIL*3);
 	const points=[pos.clone()];
 	const geometry=new THREE.BufferGeometry();
 	geometry.setFromPoints(points);
 	const line=new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
 	line.frustumCulled=false;
 	scene.add(line);
-	trails.push(new Trail(points, line));
+	const trail=new Trail(buffer, line);
+	trail.buffer[0]=pos.x;
+	trail.buffer[1]=pos.y;
+	trail.buffer[2]=pos.z;
+	trails.push(trail);
 	testIndex=bodies.length-1;
 }
 function testMass(): void{
@@ -245,11 +273,25 @@ function testMass(): void{
 	bodies[idx].obj.position.add(bodies[idx].v);
 	bodies[idx].v.add(grav(idx).multiplyScalar(1/(20*bodies[idx].m)));
 	const trail=trails[idx];
-	trail.pos.unshift(bodies[idx].obj.position.clone());
-	if(trail.pos.length>MAX_TRAIL) trail.pos.pop();
+	const pos=bodies[idx].obj.position;
+	const headIdx=trail.head*3;
+	trail.buffer[headIdx]=pos.x;
+	trail.buffer[headIdx+1]=pos.y;
+	trail.buffer[headIdx+2]=pos.z;
+	trail.head=(trail.head+1)%MAX_TRAIL;
+	if(trail.count<MAX_TRAIL) trail.count++;
+	const points: THREE.Vector3[]=[];
+	const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
+	for(let j=0;j<trail.count;j++){
+		const pIdx=(start+j)%MAX_TRAIL;
+		const bx=trail.buffer[pIdx*3];
+		const by=trail.buffer[pIdx*3+1];
+		const bz=trail.buffer[pIdx*3+2];
+		points.push(new THREE.Vector3(bx,by,bz));
+	}
 	const oldGeo=trail.line.geometry;
 	const newGeo=new THREE.BufferGeometry();
-	newGeo.setFromPoints(trail.pos);
+	newGeo.setFromPoints(points);
 	trail.line.geometry=newGeo;
 	oldGeo.dispose();
 }
