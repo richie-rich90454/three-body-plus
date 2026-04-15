@@ -12,8 +12,8 @@ class Trail{
 	line: THREE.Line;
 	constructor(buffer: Float32Array, line: THREE.Line){
 		this.buffer=buffer;
-		this.head=1;
-		this.count=1;
+		this.head=0;
+		this.count=0;
 		this.line=line;
 	}
 }
@@ -140,6 +140,8 @@ function trailMake(): void{
 		trail.buffer[0]=bodies[i].obj.position.x;
 		trail.buffer[1]=bodies[i].obj.position.y;
 		trail.buffer[2]=bodies[i].obj.position.z;
+		trail.count=1;
+		trail.head=1;
 		trails.push(trail);
 	}
 }
@@ -173,7 +175,7 @@ function cameraControl(): void{
 	const com=new THREE.Vector3();
 	let totalMass=0;
 	for(let i=0;i<bodies.length;i++){
-		com.add(bodies[i].obj.position.clone().multiplyScalar(bodies[i].m));
+		com.addScaledVector(bodies[i].obj.position, bodies[i].m);
 		totalMass+=bodies[i].m;
 	}
 	com.divideScalar(totalMass);
@@ -194,10 +196,7 @@ function trailControl(): void{
 		const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
 		for(let j=0;j<trail.count;j++){
 			const pIdx=(start+j)%MAX_TRAIL;
-			const bx=trail.buffer[pIdx*3];
-			const by=trail.buffer[pIdx*3+1];
-			const bz=trail.buffer[pIdx*3+2];
-			points.push(new THREE.Vector3(bx,by,bz));
+			points.push(new THREE.Vector3(trail.buffer[pIdx*3], trail.buffer[pIdx*3+1], trail.buffer[pIdx*3+2]));
 		}
 		const oldGeo=trail.line.geometry;
 		const newGeo=new THREE.BufferGeometry();
@@ -265,6 +264,8 @@ function addTestMass(): void{
 	trail.buffer[0]=pos.x;
 	trail.buffer[1]=pos.y;
 	trail.buffer[2]=pos.z;
+	trail.count=1;
+	trail.head=1;
 	trails.push(trail);
 	testIndex=bodies.length-1;
 }
@@ -284,10 +285,7 @@ function testMass(): void{
 	const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
 	for(let j=0;j<trail.count;j++){
 		const pIdx=(start+j)%MAX_TRAIL;
-		const bx=trail.buffer[pIdx*3];
-		const by=trail.buffer[pIdx*3+1];
-		const bz=trail.buffer[pIdx*3+2];
-		points.push(new THREE.Vector3(bx,by,bz));
+		points.push(new THREE.Vector3(trail.buffer[pIdx*3], trail.buffer[pIdx*3+1], trail.buffer[pIdx*3+2]));
 	}
 	const oldGeo=trail.line.geometry;
 	const newGeo=new THREE.BufferGeometry();
