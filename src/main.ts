@@ -10,11 +10,15 @@ class Trail{
 	head: number;
 	count: number;
 	line: THREE.Line;
-	constructor(buffer: Float32Array, line: THREE.Line){
+	geometry: THREE.BufferGeometry;
+	positionAttribute: THREE.BufferAttribute;
+	constructor(buffer: Float32Array, line: THREE.Line, geometry: THREE.BufferGeometry, attribute: THREE.BufferAttribute){
 		this.buffer=buffer;
 		this.head=0;
 		this.count=0;
 		this.line=line;
+		this.geometry=geometry;
+		this.positionAttribute=attribute;
 	}
 }
 class Body{
@@ -54,8 +58,8 @@ controls.update();
 const light=new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(0,2,5);
 light.castShadow=true;
-light.shadow.mapSize.width=512;
-light.shadow.mapSize.height=512;
+light.shadow.mapSize.width=256;
+light.shadow.mapSize.height=256;
 light.shadow.camera.near=0.5;
 light.shadow.camera.far=500;
 scene.add(light);
@@ -130,26 +134,32 @@ const MAX_TRAIL=200000;
 function trailMake(): void{
 	for(let i=0;i<bodies.length;i++){
 		const buffer=new Float32Array(MAX_TRAIL*3);
-		const points=[bodies[i].obj.position.clone()];
+		const pos=bodies[i].obj.position;
+		buffer[0]=pos.x;
+		buffer[1]=pos.y;
+		buffer[2]=pos.z;
 		const geometry=new THREE.BufferGeometry();
-		geometry.setFromPoints(points);
+		const initialArray=new Float32Array(MAX_TRAIL*3);
+		geometry.setAttribute('position', new THREE.BufferAttribute(initialArray, 3));
 		const line=new THREE.Line(geometry, lineMaterials[i%3]);
 		line.frustumCulled=false;
 		scene.add(line);
-		const trail=new Trail(buffer, line);
-		trail.buffer[0]=bodies[i].obj.position.x;
-		trail.buffer[1]=bodies[i].obj.position.y;
-		trail.buffer[2]=bodies[i].obj.position.z;
+		const attr=geometry.attributes.position as THREE.BufferAttribute;
+		const trail=new Trail(buffer, line, geometry, attr);
 		trail.count=1;
 		trail.head=1;
+		attr.setXYZ(0, pos.x, pos.y, pos.z);
+		attr.needsUpdate=true;
+		geometry.setDrawRange(0, 1);
 		trails.push(trail);
 	}
 }
 bodyMake();
 trailMake();
 const _tempDir=new THREE.Vector3();
+const _force=new THREE.Vector3();
 function grav(o: number): THREE.Vector3{
-	const force=new THREE.Vector3();
+	_force.set(0,0,0);
 	const o0=bodies[o].obj.position;
 	const oMass=bodies[o].m;
 	for(let i=0;i<bodies.length;i++){
@@ -157,10 +167,10 @@ function grav(o: number): THREE.Vector3{
 			const o1=bodies[i].obj.position;
 			const dir=_tempDir.subVectors(o1, o0).normalize();
 			const distSq=o0.distanceToSquared(o1);
-			force.add(dir.multiplyScalar(oMass*bodies[i].m/distSq));
+			_force.add(dir.multiplyScalar(oMass*bodies[i].m/distSq));
 		}
 	}
-	return force;
+	return _force;
 }
 function physics(): void{
 	const len=bodies.length;
@@ -192,17 +202,17 @@ function trailControl(): void{
 		trail.buffer[idx+2]=pos.z;
 		trail.head=(trail.head+1)%MAX_TRAIL;
 		if(trail.count<MAX_TRAIL) trail.count++;
-		const points: THREE.Vector3[]=[];
 		const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
+		const attr=trail.positionAttribute;
+		const array=attr.array as Float32Array;
 		for(let j=0;j<trail.count;j++){
 			const pIdx=(start+j)%MAX_TRAIL;
-			points.push(new THREE.Vector3(trail.buffer[pIdx*3], trail.buffer[pIdx*3+1], trail.buffer[pIdx*3+2]));
+			array[j*3]=trail.buffer[pIdx*3];
+			array[j*3+1]=trail.buffer[pIdx*3+1];
+			array[j*3+2]=trail.buffer[pIdx*3+2];
 		}
-		const oldGeo=trail.line.geometry;
-		const newGeo=new THREE.BufferGeometry();
-		newGeo.setFromPoints(points);
-		trail.line.geometry=newGeo;
-		oldGeo.dispose();
+		attr.needsUpdate=true;
+		trail.geometry.setDrawRange(0, trail.count);
 	}
 }
 let work=false;
@@ -251,21 +261,27 @@ function addTestMass(): void{
 	const vel=new THREE.Vector3(0,0.05,0.05);
 	const mesh=new THREE.Mesh(sphereGeos[1], new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 }));
 	mesh.position.copy(pos);
+	mesh.castShadow=false;
+	mesh.receiveShadow=false;
 	scene.add(mesh);
 	bodies.push(new Body(1, pos, vel, mesh, true));
 	const buffer=new Float32Array(MAX_TRAIL*3);
-	const points=[pos.clone()];
+	buffer[0]=pos.x;
+	buffer[1]=pos.y;
+	buffer[2]=pos.z;
 	const geometry=new THREE.BufferGeometry();
-	geometry.setFromPoints(points);
+	const initialArray=new Float32Array(MAX_TRAIL*3);
+	geometry.setAttribute('position', new THREE.BufferAttribute(initialArray, 3));
 	const line=new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
 	line.frustumCulled=false;
 	scene.add(line);
-	const trail=new Trail(buffer, line);
-	trail.buffer[0]=pos.x;
-	trail.buffer[1]=pos.y;
-	trail.buffer[2]=pos.z;
+	const attr=geometry.attributes.position as THREE.BufferAttribute;
+	const trail=new Trail(buffer, line, geometry, attr);
 	trail.count=1;
 	trail.head=1;
+	attr.setXYZ(0, pos.x, pos.y, pos.z);
+	attr.needsUpdate=true;
+	geometry.setDrawRange(0, 1);
 	trails.push(trail);
 	testIndex=bodies.length-1;
 }
@@ -281,17 +297,17 @@ function testMass(): void{
 	trail.buffer[headIdx+2]=pos.z;
 	trail.head=(trail.head+1)%MAX_TRAIL;
 	if(trail.count<MAX_TRAIL) trail.count++;
-	const points: THREE.Vector3[]=[];
 	const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
+	const attr=trail.positionAttribute;
+	const array=attr.array as Float32Array;
 	for(let j=0;j<trail.count;j++){
 		const pIdx=(start+j)%MAX_TRAIL;
-		points.push(new THREE.Vector3(trail.buffer[pIdx*3], trail.buffer[pIdx*3+1], trail.buffer[pIdx*3+2]));
+		array[j*3]=trail.buffer[pIdx*3];
+		array[j*3+1]=trail.buffer[pIdx*3+1];
+		array[j*3+2]=trail.buffer[pIdx*3+2];
 	}
-	const oldGeo=trail.line.geometry;
-	const newGeo=new THREE.BufferGeometry();
-	newGeo.setFromPoints(points);
-	trail.line.geometry=newGeo;
-	oldGeo.dispose();
+	attr.needsUpdate=true;
+	trail.geometry.setDrawRange(0, trail.count);
 }
 function genSlider(i: number): void{
 	const b=bodies[i];
@@ -340,6 +356,22 @@ $("b-b").addEventListener("click", toggleBkg);
 $("b-tm").addEventListener("click", addTestMass);
 $("b-ps").addEventListener("click", toggleSetter);
 $("setter").style.display="none";
+window.addEventListener('beforeunload', ()=>{
+	stars.dispose();
+	renderer.dispose();
+	controls.dispose();
+	for(const b of bodies){
+		if(b.obj.geometry) b.obj.geometry.dispose();
+		if(b.obj.material) (b.obj.material as THREE.Material).dispose();
+	}
+	for(const geo of sphereGeos) geo.dispose();
+	for(const mat of sphereMats) mat.dispose();
+	for(const mat of lineMaterials) mat.dispose();
+	for(const t of trails){
+		t.geometry.dispose();
+		if(t.line.material instanceof THREE.Material) t.line.material.dispose();
+	}
+});
 function animate(): void{
 	requestAnimationFrame(animate);
 	stats.begin();
