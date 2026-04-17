@@ -6,14 +6,12 @@ interface ControllerMap{
 	[key: number]: { pressed: boolean };
 }
 class Trail{
-	buffer: Float32Array;
 	head: number;
 	count: number;
 	line: THREE.Line;
 	geometry: THREE.BufferGeometry;
 	positionAttribute: THREE.BufferAttribute;
-	constructor(buffer: Float32Array, line: THREE.Line, geometry: THREE.BufferGeometry, attribute: THREE.BufferAttribute){
-		this.buffer=buffer;
+	constructor(line: THREE.Line, geometry: THREE.BufferGeometry, attribute: THREE.BufferAttribute){
 		this.head=0;
 		this.count=0;
 		this.line=line;
@@ -133,23 +131,20 @@ function bodyMake(): void{
 const MAX_TRAIL=200000;
 function trailMake(): void{
 	for(let i=0;i<bodies.length;i++){
-		const buffer=new Float32Array(MAX_TRAIL*3);
 		const pos=bodies[i].obj.position;
-		buffer[0]=pos.x;
-		buffer[1]=pos.y;
-		buffer[2]=pos.z;
+		const array=new Float32Array(MAX_TRAIL*3);
+		array[0]=pos.x;
+		array[1]=pos.y;
+		array[2]=pos.z;
 		const geometry=new THREE.BufferGeometry();
-		const initialArray=new Float32Array(MAX_TRAIL*3);
-		geometry.setAttribute('position', new THREE.BufferAttribute(initialArray, 3));
+		geometry.setAttribute('position', new THREE.BufferAttribute(array, 3));
 		const line=new THREE.Line(geometry, lineMaterials[i%3]);
 		line.frustumCulled=false;
 		scene.add(line);
 		const attr=geometry.attributes.position as THREE.BufferAttribute;
-		const trail=new Trail(buffer, line, geometry, attr);
+		const trail=new Trail(line, geometry, attr);
 		trail.count=1;
 		trail.head=1;
-		attr.setXYZ(0, pos.x, pos.y, pos.z);
-		attr.needsUpdate=true;
 		geometry.setDrawRange(0, 1);
 		trails.push(trail);
 	}
@@ -196,22 +191,14 @@ function trailControl(): void{
 	for(let i=0;i<len;i++){
 		const trail=trails[i];
 		const pos=bodies[i].obj.position;
+		const array=trail.positionAttribute.array as Float32Array;
 		const idx=trail.head*3;
-		trail.buffer[idx]=pos.x;
-		trail.buffer[idx+1]=pos.y;
-		trail.buffer[idx+2]=pos.z;
+		array[idx]=pos.x;
+		array[idx+1]=pos.y;
+		array[idx+2]=pos.z;
 		trail.head=(trail.head+1)%MAX_TRAIL;
 		if(trail.count<MAX_TRAIL) trail.count++;
-		const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
-		const attr=trail.positionAttribute;
-		const array=attr.array as Float32Array;
-		for(let j=0;j<trail.count;j++){
-			const pIdx=(start+j)%MAX_TRAIL;
-			array[j*3]=trail.buffer[pIdx*3];
-			array[j*3+1]=trail.buffer[pIdx*3+1];
-			array[j*3+2]=trail.buffer[pIdx*3+2];
-		}
-		attr.needsUpdate=true;
+		trail.positionAttribute.needsUpdate=true;
 		trail.geometry.setDrawRange(0, trail.count);
 	}
 }
@@ -265,22 +252,19 @@ function addTestMass(): void{
 	mesh.receiveShadow=false;
 	scene.add(mesh);
 	bodies.push(new Body(1, pos, vel, mesh, true));
-	const buffer=new Float32Array(MAX_TRAIL*3);
-	buffer[0]=pos.x;
-	buffer[1]=pos.y;
-	buffer[2]=pos.z;
+	const array=new Float32Array(MAX_TRAIL*3);
+	array[0]=pos.x;
+	array[1]=pos.y;
+	array[2]=pos.z;
 	const geometry=new THREE.BufferGeometry();
-	const initialArray=new Float32Array(MAX_TRAIL*3);
-	geometry.setAttribute('position', new THREE.BufferAttribute(initialArray, 3));
+	geometry.setAttribute('position', new THREE.BufferAttribute(array, 3));
 	const line=new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
 	line.frustumCulled=false;
 	scene.add(line);
 	const attr=geometry.attributes.position as THREE.BufferAttribute;
-	const trail=new Trail(buffer, line, geometry, attr);
+	const trail=new Trail(line, geometry, attr);
 	trail.count=1;
 	trail.head=1;
-	attr.setXYZ(0, pos.x, pos.y, pos.z);
-	attr.needsUpdate=true;
 	geometry.setDrawRange(0, 1);
 	trails.push(trail);
 	testIndex=bodies.length-1;
@@ -291,22 +275,14 @@ function testMass(): void{
 	bodies[idx].v.add(grav(idx).multiplyScalar(1/(20*bodies[idx].m)));
 	const trail=trails[idx];
 	const pos=bodies[idx].obj.position;
+	const array=trail.positionAttribute.array as Float32Array;
 	const headIdx=trail.head*3;
-	trail.buffer[headIdx]=pos.x;
-	trail.buffer[headIdx+1]=pos.y;
-	trail.buffer[headIdx+2]=pos.z;
+	array[headIdx]=pos.x;
+	array[headIdx+1]=pos.y;
+	array[headIdx+2]=pos.z;
 	trail.head=(trail.head+1)%MAX_TRAIL;
 	if(trail.count<MAX_TRAIL) trail.count++;
-	const start=(trail.head-trail.count+MAX_TRAIL)%MAX_TRAIL;
-	const attr=trail.positionAttribute;
-	const array=attr.array as Float32Array;
-	for(let j=0;j<trail.count;j++){
-		const pIdx=(start+j)%MAX_TRAIL;
-		array[j*3]=trail.buffer[pIdx*3];
-		array[j*3+1]=trail.buffer[pIdx*3+1];
-		array[j*3+2]=trail.buffer[pIdx*3+2];
-	}
-	attr.needsUpdate=true;
+	trail.positionAttribute.needsUpdate=true;
 	trail.geometry.setDrawRange(0, trail.count);
 }
 function genSlider(i: number): void{
