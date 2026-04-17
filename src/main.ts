@@ -105,8 +105,8 @@ const lineMaterials=[
 	new THREE.LineBasicMaterial({ color: 0xff8888, transparent: true, opacity: 0.9 }),
 ];
 const sphereGeos=[
-	new THREE.SphereGeometry(0.25,8,8),
-	new THREE.SphereGeometry(0.05,8,8),
+	new THREE.SphereGeometry(0.25,4,4),
+	new THREE.SphereGeometry(0.05,4,4),
 ];
 const sphereMats=[
 	new THREE.MeshLambertMaterial({ color: 0xddddff, transparent: true, opacity: 0.9 }),
