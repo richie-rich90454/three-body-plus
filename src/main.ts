@@ -137,11 +137,12 @@ function trailMake(): void{
 		array[1]=pos.y;
 		array[2]=pos.z;
 		const geometry=new THREE.BufferGeometry();
-		geometry.setAttribute('position', new THREE.BufferAttribute(array, 3));
+		const attr=new THREE.BufferAttribute(array, 3);
+		attr.setUsage(THREE.DynamicDrawUsage);
+		geometry.setAttribute('position', attr);
 		const line=new THREE.Line(geometry, lineMaterials[i%3]);
 		line.frustumCulled=false;
 		scene.add(line);
-		const attr=geometry.attributes.position as THREE.BufferAttribute;
 		const trail=new Trail(line, geometry, attr);
 		trail.count=1;
 		trail.head=1;
@@ -153,6 +154,8 @@ bodyMake();
 trailMake();
 const _tempDir=new THREE.Vector3();
 const _force=new THREE.Vector3();
+const _com=new THREE.Vector3();
+let _frameCounter=0;
 function grav(o: number): THREE.Vector3{
 	_force.set(0,0,0);
 	const o0=bodies[o].obj.position;
@@ -177,16 +180,18 @@ function physics(): void{
 	}
 }
 function cameraControl(): void{
-	const com=new THREE.Vector3();
+	_com.set(0,0,0);
 	let totalMass=0;
 	for(let i=0;i<bodies.length;i++){
-		com.addScaledVector(bodies[i].obj.position, bodies[i].m);
+		_com.addScaledVector(bodies[i].obj.position, bodies[i].m);
 		totalMass+=bodies[i].m;
 	}
-	com.divideScalar(totalMass);
-	controls.target.copy(com);
+	_com.divideScalar(totalMass);
+	controls.target.copy(_com);
 }
 function trailControl(): void{
+	_frameCounter++;
+	if(_frameCounter%2!==0) return;
 	const len=trails.length;
 	for(let i=0;i<len;i++){
 		const trail=trails[i];
@@ -257,11 +262,12 @@ function addTestMass(): void{
 	array[1]=pos.y;
 	array[2]=pos.z;
 	const geometry=new THREE.BufferGeometry();
-	geometry.setAttribute('position', new THREE.BufferAttribute(array, 3));
+	const attr=new THREE.BufferAttribute(array, 3);
+	attr.setUsage(THREE.DynamicDrawUsage);
+	geometry.setAttribute('position', attr);
 	const line=new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 }));
 	line.frustumCulled=false;
 	scene.add(line);
-	const attr=geometry.attributes.position as THREE.BufferAttribute;
 	const trail=new Trail(line, geometry, attr);
 	trail.count=1;
 	trail.head=1;
