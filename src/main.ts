@@ -128,7 +128,7 @@ function bodyMake(): void{
 	controls.target.x=5*(n-1)/2;
 	camera.position.x=5*(n-1)/2;
 }
-const MAX_TRAIL=200000;
+const MAX_TRAIL=150000;
 function trailMake(): void{
 	for(let i=0;i<bodies.length;i++){
 		const pos=bodies[i].obj.position;
