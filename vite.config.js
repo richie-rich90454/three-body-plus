@@ -16,14 +16,19 @@ export default defineConfig({
 		target: "es6",
 		cssMinify: true,
 		chunkSizeWarningLimit: 1000,
+		sourcemap: false,
+		treeshake: true,
+		cssCodeSplit: true,
 		rolldownOptions: {
 			output: {
 				codeSplitting: true,
 				manualChunks(id){
 					if (id.includes("node_modules")){
-						if (id.includes("node_modules/mathjs/")){
-							let parts=id.split("node_modules/mathjs/")[1].split("/");
-							return `vendor-mathjs-${parts[0]}`;
+						if (id.includes("three")){
+							return "vendor-three";
+						}
+						if (id.includes("stats-js")){
+							return "vendor-stats";
 						}
 						let parts=id.split("node_modules/")[1].split("/");
 						let topLevel=parts[0];
@@ -31,11 +36,19 @@ export default defineConfig({
 							let scoped=`${topLevel}/${parts[1]}`;
 							return `vendor-${scoped.replace("@","")}`;
 						}
-						if (["three"].includes(topLevel)){
-							return `vendor-${topLevel}`;
-						}
 						return "vendor-other";
 					}
+				},
+				chunkFileNames: "assets/[hash:8].js",
+				entryFileNames: "assets/[name].[hash:8].js",
+			}
+		},
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					three: ["three"],
+					"three-addons": ["three/examples/jsm/controls/OrbitControls.js"],
+					stats: ["stats-js"]
 				}
 			}
 		}
@@ -51,11 +64,21 @@ export default defineConfig({
 	server: {
 		host: "::",
 		port: 5173,
-		open: false
+		open: false,
+		optimizeDeps: {
+			include: ["three", "three/examples/jsm/controls/OrbitControls.js", "stats-js"],
+			exclude: []
+		}
 	},
 	preview: {
 		host: "::",
 		port: 4173,
 		open: false
+	},
+	cacheDir: ".vite-cache",
+	esbuild: {
+		minifyIdentifiers: true,
+		minifySyntax: true,
+		drop: ["debugger"]
 	}
 });

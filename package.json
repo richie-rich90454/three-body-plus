@@ -14,7 +14,7 @@
   "license": "MIT",
   "dependencies": {
     "stats-js": "^1.0.1",
-    "three": "^0.183.2"
+    "three": "^0.184.0"
   },
   "devDependencies": {
     "@types/stats": "^0.16.30",
