@@ -105,8 +105,8 @@ const lineMaterials=[
 	new THREE.LineBasicMaterial({ color: 0xff8888, transparent: true, opacity: 0.9 }),
 ];
 const sphereGeos=[
-	new THREE.SphereGeometry(0.25,4,4),
-	new THREE.SphereGeometry(0.05,4,4),
+	new THREE.SphereGeometry(0.25,5,5),
+	new THREE.SphereGeometry(0.05,5,5),
 ];
 const sphereMats=[
 	new THREE.MeshLambertMaterial({ color: 0xddddff, transparent: true, opacity: 0.9 }),
@@ -132,7 +132,7 @@ const MAX_TRAIL=200000;
 function trailMake(): void{
 	for(let i=0;i<bodies.length;i++){
 		const pos=bodies[i].obj.position;
-		const array=new Float32Array(MAX_TRAIL*3);
+		const array=new Float32Array(MAX_TRAIL*2);
 		array[0]=pos.x;
 		array[1]=pos.y;
 		array[2]=pos.z;
